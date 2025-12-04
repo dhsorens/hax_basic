@@ -1,0 +1,11 @@
+name = "hax_basic"
+version = "0.1.0"
+defaultTargets = ["hax_basic"]
+
+[[lean_lib]]
+name = "hax_basic"
+roots = ["extraction.hax_basic"]
+
+[[require]]
+name = "Hax"
+path = "../../../../hax/hax-lib/proof-libs/lean"
