@@ -54,6 +54,21 @@ jobs:
         run: |
           cargo hax --version
       
+      - name: Update Cargo.toml for CI
+        working-directory: hax_basic
+        run: |
+          # Update the hax-lib path to point to the checked-out hax
+          # Original path: ../../hax/hax-lib (assumes hax is 2 levels up)
+          # In CI, hax is at: ../hax (1 level up from hax_basic)
+          sed -i 's|path = "../../hax/hax-lib"|path = "../hax/hax-lib"|' Cargo.toml
+          # Verify the path exists
+          if [ ! -d "../hax/hax-lib" ]; then
+            echo "Error: hax-lib not found"
+            echo "Expected: $(pwd)/../hax/hax-lib"
+            ls -la ../ || true
+            exit 1
+          fi
+      
       - name: Extract Rust to Lean
         working-directory: hax_basic
         run: |
