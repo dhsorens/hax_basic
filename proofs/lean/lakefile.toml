@@ -8,4 +8,6 @@ roots = ["extraction.hax_basic"]
 
 [[require]]
 name = "Hax"
-path = "../../../../hax/hax-lib/proof-libs/lean"
+git.url = "https://github.com/cryspen/hax"
+git.subDir = "hax-lib/proof-libs/lean"
+rev = "main"

@@ -14,14 +14,6 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
-        with:
-          path: hax_basic
-      
-      - name: Checkout hax (for Lean library dependency)
-        uses: actions/checkout@v4
-        with:
-          repository: cryspen/hax
-          path: hax
       
       - name: Install Nix
         uses: DeterminateSystems/nix-installer-action@main
@@ -54,23 +46,7 @@ jobs:
         run: |
           cargo hax --version
       
-      - name: Update Cargo.toml for CI
-        working-directory: hax_basic
-        run: |
-          # Update the hax-lib path to point to the checked-out hax
-          # Original path: ../../hax/hax-lib (assumes hax is 2 levels up)
-          # In CI, hax is at: ../hax (1 level up from hax_basic)
-          sed -i 's|path = "../../hax/hax-lib"|path = "../hax/hax-lib"|' Cargo.toml
-          # Verify the path exists
-          if [ ! -d "../hax/hax-lib" ]; then
-            echo "Error: hax-lib not found"
-            echo "Expected: $(pwd)/../hax/hax-lib"
-            ls -la ../ || true
-            exit 1
-          fi
-      
       - name: Extract Rust to Lean
-        working-directory: hax_basic
         run: |
           cargo hax into lean
           # Verify extraction succeeded
@@ -79,23 +55,29 @@ jobs:
             exit 1
           fi
       
-      - name: Update lakefile.toml for CI
-        working-directory: hax_basic/proofs/lean
+      - name: Verify and update lakefile.toml
+        working-directory: proofs/lean
         run: |
-          # Update the hax library path to point to the checked-out hax
-          # Original path: ../../../../hax/hax-lib/proof-libs/lean
-          # In CI, hax is at: ../../../hax (from proofs/lean)
-          sed -i 's|path = "../../../../hax/hax-lib/proof-libs/lean"|path = "../../../hax/hax-lib/proof-libs/lean"|' lakefile.toml
-          # Verify the path exists
-          if [ ! -d "../../../hax/hax-lib/proof-libs/lean" ]; then
-            echo "Error: Hax library not found"
-            echo "Expected: $(pwd)/../../../hax/hax-lib/proof-libs/lean"
-            ls -la ../../../ || true
-            exit 1
+          # If lakefile still uses path, convert to git
+          if grep -q 'path = ' lakefile.toml; then
+            echo "Converting lakefile.toml from path to git dependency"
+            # Remove the path line and add git lines after name = "Hax"
+            sed -i '/path = /d' lakefile.toml
+            sed -i '/name = "Hax"/a\
+  git.url = "https://github.com/cryspen/hax"\
+  git.subDir = "hax-lib/proof-libs/lean"\
+  rev = "main"' lakefile.toml
           fi
+          echo "Current lakefile.toml:"
+          cat lakefile.toml
       
       - name: Build Lean code
-        working-directory: hax_basic/proofs/lean
+        working-directory: proofs/lean
         run: |
+          # Clean any cached lake dependencies to ensure fresh fetch
+          lake clean
+          # Update dependencies
+          lake update
+          # Build the Lean code
           lake build
 
