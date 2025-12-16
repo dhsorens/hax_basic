@@ -3,6 +3,8 @@
 /// This module provides pure functions for counter operations that are
 /// amenable to formal verification techniques.
 
+use hax_lib as hax;
+
 /// Represents a counter value.
 pub type Counter = u32;
 
@@ -13,6 +15,18 @@ pub type Counter = u32;
 /// 
 /// # Properties
 /// - `new_counter() == 0`
+#[hax::ensures(|result| result == 0)]
+#[hax::lean::before("@[simp, spec]")]
+#[hax::lean::after(
+    "-- Specification of new_counter
+theorem Hax_basic.new_counter_spec :
+  ⦃ ⌜ True ⌝ ⦄ -- Precondition (always true here)
+  (Hax_basic.new_counter Rust_primitives.Hax.Tuple0.mk) -- The function call
+  ⦃ ⇓ result => ⌜ Hax_basic._.ensures Rust_primitives.Hax.Tuple0.mk result = pure true ⌝ ⦄  -- Postcondition
+  := by
+  mvcgen [Hax_basic.new_counter, Hax_basic._.ensures]
+"
+)]
 pub fn new_counter() -> Counter {
     0
 }
@@ -29,6 +43,7 @@ pub fn new_counter() -> Counter {
 /// - `increment(new_counter()) == 1`
 /// - `increment(increment(c)) == increment(c) + 1`
 /// - `increment(c) == c + 1`
+/// TODO #[hax::ensures(|result| result == c.wrapping_add(1))]
 pub fn increment(c: Counter) -> Counter {
     c.wrapping_add(1)
 }
@@ -44,6 +59,7 @@ pub fn increment(c: Counter) -> Counter {
 /// # Properties
 /// - `decrement(increment(c)) == c` (when no overflow occurs)
 /// - `decrement(new_counter()) == u32::MAX`
+/// TODO #[hax::ensures(|result| result == c.wrapping_sub(1))]
 pub fn decrement(c: Counter) -> Counter {
     c.wrapping_sub(1)
 }
@@ -61,6 +77,7 @@ pub fn decrement(c: Counter) -> Counter {
 /// - `add(c, 0) == c`
 /// - `add(c, 1) == increment(c)`
 /// - `add(add(c, n), m) == add(c, n + m)` (when no overflow)
+/// TODO #[hax::ensures(|result| result == c.wrapping_add(n))]
 pub fn add(c: Counter, n: Counter) -> Counter {
     c.wrapping_add(n)
 }
@@ -78,6 +95,7 @@ pub fn add(c: Counter, n: Counter) -> Counter {
 /// - `subtract(c, 0) == c`
 /// - `subtract(c, 1) == decrement(c)`
 /// - `subtract(subtract(c, n), m) == subtract(c, n + m)` (when no underflow)
+/// TODO #[hax::ensures(|result| result == c.wrapping_sub(n))]
 pub fn subtract(c: Counter, n: Counter) -> Counter {
     c.wrapping_sub(n)
 }
@@ -93,6 +111,7 @@ pub fn subtract(c: Counter, n: Counter) -> Counter {
 /// # Properties
 /// - `reset(c) == new_counter()`
 /// - `reset(c) == 0`
+/// TODO #[hax::ensures(|result| result == 0)]
 pub fn reset(_c: Counter) -> Counter {
     0
 }
