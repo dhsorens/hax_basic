@@ -1,0 +1,86 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main, master]
+  workflow_dispatch:
+
+jobs:
+  extract-and-verify:
+    name: Extract to Lean and verify
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          path: hax_basic
+      
+      - name: Checkout hax (for Lean library dependency)
+        uses: actions/checkout@v4
+        with:
+          repository: cryspen/hax
+          path: hax
+      
+      - name: Install Nix
+        uses: DeterminateSystems/nix-installer-action@main
+      
+      - name: Set up Cachix
+        uses: cachix/cachix-action@v15
+        with:
+          name: hax
+          skipPush: true
+          extraPullNames: fstar-nix-versions, z3-nix-versions
+      
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: stable
+      
+      - name: Install hax
+        run: |
+          nix profile install github:hacspec/hax
+      
+      - name: Install Lean
+        run: |
+          # Install Lean 4 (lake is included)
+          nix profile install nixpkgs#lean4
+          # Verify installation
+          lean --version
+          lake --version
+      
+      - name: Verify hax installation
+        run: |
+          cargo hax --version
+      
+      - name: Extract Rust to Lean
+        working-directory: hax_basic
+        run: |
+          cargo hax into lean
+          # Verify extraction succeeded
+          if [ ! -f "proofs/lean/extraction/Hax_basic.lean" ]; then
+            echo "Error: Lean extraction failed - Hax_basic.lean not found"
+            exit 1
+          fi
+      
+      - name: Update lakefile.toml for CI
+        working-directory: hax_basic/proofs/lean
+        run: |
+          # Update the hax library path to point to the checked-out hax
+          # Original path: ../../../../hax/hax-lib/proof-libs/lean
+          # In CI, hax is at: ../../../hax (from proofs/lean)
+          sed -i 's|path = "../../../../hax/hax-lib/proof-libs/lean"|path = "../../../hax/hax-lib/proof-libs/lean"|' lakefile.toml
+          # Verify the path exists
+          if [ ! -d "../../../hax/hax-lib/proof-libs/lean" ]; then
+            echo "Error: Hax library not found"
+            echo "Expected: $(pwd)/../../../hax/hax-lib/proof-libs/lean"
+            ls -la ../../../ || true
+            exit 1
+          fi
+      
+      - name: Build Lean code
+        working-directory: hax_basic/proofs/lean
+        run: |
+          lake build
+
