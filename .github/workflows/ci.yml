@@ -61,12 +61,10 @@ jobs:
           # If lakefile still uses path, convert to git
           if grep -q 'path = ' lakefile.toml; then
             echo "Converting lakefile.toml from path to git dependency"
-            # Remove the path line and add git lines after name = "Hax"
+            # Remove the path line
             sed -i '/path = /d' lakefile.toml
-            sed -i '/name = "Hax"/a\
-  git.url = "https://github.com/cryspen/hax"\
-  git.subDir = "hax-lib/proof-libs/lean"\
-  rev = "main"' lakefile.toml
+            # Add git lines after name = "Hax" using a temporary file
+            awk '/name = "Hax"/ {print; print "  git.url = \"https://github.com/cryspen/hax\""; print "  git.subDir = \"hax-lib/proof-libs/lean\""; print "  rev = \"main\""; next}1' lakefile.toml > lakefile.toml.tmp && mv lakefile.toml.tmp lakefile.toml
           fi
           echo "Current lakefile.toml:"
           cat lakefile.toml
